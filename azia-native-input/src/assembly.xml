@@ -1,0 +1,25 @@
+<assembly>
+	<id>bin</id>
+	<!-- Generates a zip package containing the needed files -->
+	<formats>
+		<format>zip</format>
+	</formats>
+
+	<fileSets>
+		<!-- Adds startup scripts to the root directory of zip package -->
+		<fileSet>
+			<directory>bin/x64</directory>
+			<outputDirectory></outputDirectory>
+			<includes>
+				<include>*.dll</include>
+			</includes>
+		</fileSet>
+		<fileSet>
+			<directory>bin/x86</directory>
+			<outputDirectory></outputDirectory>
+			<includes>
+				<include>*.dll</include>
+			</includes>
+		</fileSet>
+	</fileSets>
+</assembly>
