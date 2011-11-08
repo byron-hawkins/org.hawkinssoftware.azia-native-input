@@ -14,8 +14,13 @@ jmethodID processMouseMoveMethod = NULL;
 jmethodID processKeyMethod = NULL;
 
 LONG mouseLocationX = -1, mouseLocationY = -1;
-bool controlDown = false;
-bool gDown = false;
+
+const int MAX_META_KEYS = 3;
+const int MAX_KEY_SYNONYMS = 3;
+int metaKeys[MAX_META_KEYS][MAX_KEY_SYNONYMS];
+bool metaKeyDefined[MAX_META_KEYS];
+bool metaKeyPressed[MAX_META_KEYS];
+bool hasMetaKeys = false;
 
 LRESULT CALLBACK MouseHook(int nCode, WPARAM wParam, LPARAM lParam) {
 	JNIEnv* env;
@@ -50,33 +55,42 @@ LRESULT CALLBACK MouseHook(int nCode, WPARAM wParam, LPARAM lParam) {
 LRESULT CALLBACK KeyboardHook(int nCode, WPARAM wParam, LPARAM lParam) {
 	JNIEnv* env;
 	KBDLLHOOKSTRUCT* p = (KBDLLHOOKSTRUCT *) lParam;
-	jboolean transitionState = (jboolean) FALSE;
+	jboolean isKeyPress = (jboolean) FALSE;
 	if (jvm->AttachCurrentThread((void **) &env, NULL) >= 0) {
 		switch (wParam) {
 		case WM_KEYDOWN:
 		case WM_SYSKEYDOWN:
-			transitionState = (jboolean) TRUE;
+			isKeyPress = (jboolean) TRUE;
 		case WM_KEYUP:
 		case WM_SYSKEYUP:
-			env->CallVoidMethod(javaHostObject, processKeyMethod,
-					transitionState, p->vkCode);
+			env->CallVoidMethod(javaHostObject, processKeyMethod, isKeyPress,
+					p->vkCode);
 			break;
 		default:
 			break;
 		}
 	}
 
-	if (p->vkCode == 0xA3) // RCONTROL
-	{
-		controlDown = (transitionState == TRUE);
+	bool isMetaKeyUp = false;
+	for (int i = 0; i < MAX_META_KEYS; i++) {
+		if (!metaKeyDefined[i]) {
+			continue;
+		}
+
+		for (int j = 0; j < MAX_KEY_SYNONYMS; j++) {
+			if ((metaKeys[i][j] > 0) && (p->vkCode == metaKeys[i][j])) {
+				metaKeyPressed[i] = isKeyPress;
+				break;
+			}
+		}
+
+		if (!metaKeyPressed[i]) {
+			isMetaKeyUp = true;
+		}
 	}
-	else if (p->vkCode == 0x47) // G
-	{
-		gDown = (transitionState == TRUE);
-	}
-	if (controlDown && gDown)
-	{
-		return 1; // consume these
+
+	if (!isMetaKeyUp) {
+		return 1; // consume any keystroke for which all meta keys are down
 	}
 
 	return CallNextHookEx(NULL, nCode, wParam, lParam);
@@ -112,3 +126,26 @@ JNIEXPORT void JNICALL Java_org_hawkinssoftware_azia_input_NativeInput_stopNativ
 	PostThreadMessage(hookThreadId,WM_QUIT,0,0L);
 }
 
+JNIEXPORT void JNICALL Java_org_hawkinssoftware_azia_input_NativeInput_defineMetaKey(JNIEnv * env, jobject thisObject, jint index, jint keyCode1, jint keyCode2, jint keyCode3)
+{
+	metaKeys[index][0] = keyCode1;
+	metaKeys[index][1] = keyCode2;
+	metaKeys[index][2] = keyCode3;
+	metaKeyDefined[index] = true;
+	metaKeyPressed[index] = false;
+	hasMetaKeys = true;
+}
+
+JNIEXPORT void JNICALL Java_org_hawkinssoftware_azia_input_NativeInput_clearMetaKeys(JNIEnv * env, jobject thisObject)
+{
+	for (int i = 0; i < MAX_META_KEYS; i++)
+	{
+		for (int j = 0; j < MAX_KEY_SYNONYMS; j++)
+		{
+			metaKeys[i][j] = 0x0;
+		}
+		metaKeyDefined[i] = false;
+		metaKeyPressed[i] = false;
+	}
+	hasMetaKeys = false;
+}
