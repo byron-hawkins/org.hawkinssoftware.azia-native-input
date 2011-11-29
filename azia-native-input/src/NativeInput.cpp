@@ -71,26 +71,28 @@ LRESULT CALLBACK KeyboardHook(int nCode, WPARAM wParam, LPARAM lParam) {
 		}
 	}
 
-	bool isMetaKeyUp = false;
-	for (int i = 0; i < MAX_META_KEYS; i++) {
-		if (!metaKeyDefined[i]) {
-			continue;
-		}
+	if (hasMetaKeys) {
+		bool isMetaKeyUp = false;
+		for (int i = 0; i < MAX_META_KEYS; i++) {
+			if (!metaKeyDefined[i]) {
+				continue;
+			}
 
-		for (int j = 0; j < MAX_KEY_SYNONYMS; j++) {
-			if ((metaKeys[i][j] > 0) && (p->vkCode == metaKeys[i][j])) {
-				metaKeyPressed[i] = isKeyPress;
-				break;
+			for (int j = 0; j < MAX_KEY_SYNONYMS; j++) {
+				if ((metaKeys[i][j] > 0) && (p->vkCode == metaKeys[i][j])) {
+					metaKeyPressed[i] = isKeyPress;
+					break;
+				}
+			}
+
+			if (!metaKeyPressed[i]) {
+				isMetaKeyUp = true;
 			}
 		}
 
-		if (!metaKeyPressed[i]) {
-			isMetaKeyUp = true;
+		if (!isMetaKeyUp) {
+			return 1; // consume any keystroke for which all meta keys are down
 		}
-	}
-
-	if (!isMetaKeyUp) {
-		return 1; // consume any keystroke for which all meta keys are down
 	}
 
 	return CallNextHookEx(NULL, nCode, wParam, lParam);
